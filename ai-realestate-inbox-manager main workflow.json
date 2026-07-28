@@ -1,0 +1,237 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "includeSpamTrash": false,
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "761c9c9b-8cfd-4acf-b53c-64f8d9e14638",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lwAHXpeO2z7N978I",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=From: {{ $json.from.text }}\nSubject: {{ $json.subject }}\nMessage: {{ $json.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Tum Horizon Realty ke liye ek professional AI Inbox Manager ho. Tumhara kaam hai incoming emails ko samajhna, unhe categorize karna, aur ek professional reply draft karna.\n\nBusiness Info:\n- Business Name: Horizon Realty\n- Services: Residential properties (buy/sell), rental listings, property consultation\n- Location: Karachi\n- Contact: +92-300-1234567\n\nHar email ko in categories mein se ek do:\n1. Sales Inquiry — koi property buy/sell/rent karna chahta hai ya price/details pooch raha hai\n2. Support/Complaint — koi existing client hai jisay kisi property ya service mein masla hai\n3. Spam/Irrelevant — koi promotional, irrelevant, ya automated email hai\n\nReply sirf \"Sales Inquiry\" aur \"Support/Complaint\" ke liye draft karo. Spam ke liye reply mat likho.\n\nReply professional, warm, aur concise ho. Kisi bhi jhoothi property details ya price commit mat karo — agar customer ne specific property poochi hai jo tumhe pata nahi, to unhe bolo \"hamari team jald hi aapko detail bhejegi\" ya \"consultation call schedule karte hain.\"\n\nPlaceholders (jese [Your Name]) kabhi mat likho."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "52d77ea5-c18d-4bf7-b795-c4b671a4eb63",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "36367ae9-fc61-4601-a67b-a97d13d9bffd",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"category\": \"Sales Inquiry\",\n  \"reply\": \"Dear customer, thank you for reaching out to Horizon Realty...\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        384,
+        208
+      ],
+      "id": "45f49e7a-ff7a-46d2-aad6-4614966150ca",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9c4fb4ff-546d-4bab-98b5-275b7ba1b0fe",
+              "leftValue": "={{ $json.output.category }}",
+              "rightValue": "Spam/Irrelevant",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        0
+      ],
+      "id": "160ab263-14fe-4de9-84dd-578fb990984e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Gmail Trigger').item.json.subject }}",
+        "message": "={{ $json.output.reply }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        -96
+      ],
+      "id": "dcd4b402-9ec8-44d4-9327-ce8a206acc42",
+      "name": "Create a draft",
+      "webhookId": "d502917b-d4c3-4abb-b016-230617ef4597",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "lwAHXpeO2z7N978I",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        768,
+        96
+      ],
+      "id": "7d87fd19-a86d-4736-866b-4a60bde7c6bf",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2ead2798-fdf9-41a3-80d3-b0a65b3f1839",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cecc21b4afde163c306314c82883b221c1a01ccb3593abc9d7425573b4018eb0"
+  },
+  "nodeGroups": [],
+  "id": "W9ctoYXTTIdVGQch",
+  "tags": []
+}
